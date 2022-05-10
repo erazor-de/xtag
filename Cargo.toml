@@ -1,0 +1,18 @@
+[package]
+name = "xtag"
+version = "0.1.0"
+authors = ["Stefan Achatz <erazor_de@users.sourceforge.net>"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/erazor-de/xtag"
+description = """
+Rust library for handling tags stored in extended attributes of supporting file systems
+"""
+
+[dependencies]
+itertools = "0.10"
+pest = "2"
+pest_derive = "2"
+regex = "1"
+thiserror = "1"
+xattr = "0.2"

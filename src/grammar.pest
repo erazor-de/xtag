@@ -1,0 +1,46 @@
+search = _{ SOI ~ expression ~ EOI }
+expression = _{ binary_expr }
+binary_expr = { unary_expr ~ (binary_op ~ unary_expr)* }
+unary_expr = { unary_op ~ unary_expr | comparison }
+comparison = { tag_with_regex ~ comparison_op ~ value_with_regex | primary }
+primary = _{ tag_with_regex | "(" ~ expression ~ ")" }
+tag_with_regex = @{ (tag_chars_without_parentheses | regex_group)+ }
+value_with_regex = @{ tag_with_regex }
+
+comparison_op = _{ equal | less_equal | less | greater_equal | greater }
+less = { "<" }
+less_equal = { "<=" }
+greater = { ">" }
+greater_equal = { ">=" }
+equal = { "==" }
+
+unary_op = _{ not }
+not = { ^"not" | "!" }
+
+binary_op = _{ and | or }
+and = { ^"and" | "&&" }
+or = { ^"or" | "||" }
+
+
+
+comma_separated_tags_with_values = _{ SOI ~ (tag_with_value ~ ("," ~ tag_with_value)*)? ~ EOI }
+tag_with_value = { tag ~ ("=" ~ value)? }
+tag = @{ name_chars+ }
+value = @{ tag }
+
+
+
+regex_chars_without_parentheses = _{ "." | "+" | "*" | "?" | "^" | "$" | "[" | "]" | "{" | "}" | "|" | "\\" }
+
+// : is meant for tag groups or general naming
+// _ is for general naming
+// - is minus for integer values and general naming
+// Don't use any regex chars for this
+name_chars = _{ ASCII_ALPHANUMERIC | ":" | "_" | "-" }
+
+tag_chars_without_parentheses = _{ name_chars | regex_chars_without_parentheses }
+regex_group = @{ "(" ~ tag_with_regex+ ~ ")" }
+
+
+
+WHITESPACE = _{ " " }
