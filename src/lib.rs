@@ -2,11 +2,13 @@ mod error;
 mod parse_search;
 mod parse_tags;
 mod parser;
+mod searcher;
 
 pub use crate::error::TaggerError;
-pub use crate::parse_search::search;
+pub use crate::parse_search::compile_search;
 pub use crate::parse_tags::csl_to_map;
 use crate::parser::Rule;
+pub use crate::searcher::Searcher;
 use itertools::Itertools;
 use regex::Regex;
 use std::collections::HashMap;
@@ -60,8 +62,7 @@ pub fn rename(
     tags: HashMap<String, Option<String>>,
 ) -> Result<HashMap<String, Option<String>>, TaggerError> {
     let mut result: HashMap<String, Option<String>> = HashMap::with_capacity(tags.len());
-    let re =
-        Regex::new(&parse_search::expand_regex(from)).map_err(|err| TaggerError::Regex(err))?;
+    let re = Regex::new(&searcher::expand_regex(from)).map_err(|err| TaggerError::Regex(err))?;
     for (key, value) in tags {
         let new_key = re.replace_all(&key, to).into_owned();
         result.insert(new_key, value);

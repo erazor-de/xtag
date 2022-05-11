@@ -18,4 +18,7 @@ pub enum TaggerError {
 
     #[error("regex error")]
     Regex(#[from] ::regex::Error), // FIXME check
+
+    #[error("int parser error")]
+    IntParse(#[from] ::core::num::ParseIntError),
 }

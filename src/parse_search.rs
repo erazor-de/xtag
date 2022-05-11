@@ -1,24 +1,20 @@
 use crate::error::TaggerError;
 use crate::parser::Rule;
 use crate::parser::SearchParser;
+use crate::searcher::Searcher;
 use pest::iterators::Pair;
 use pest::Parser;
-use regex::Regex;
-use std::collections::HashMap;
 
-fn eval_binary_expr(
-    pair: Pair<Rule>,
-    tags: &HashMap<String, Option<String>>,
-) -> Result<bool, TaggerError> {
+fn eval_binary_expr(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
     let mut pairs = pair.into_inner();
-    let mut lhs = eval_expression(pairs.next().unwrap(), tags)?;
+    let mut lhs = eval_expression(pairs.next().unwrap())?;
     while pairs.peek().is_some() {
         // (binary_op ~ unary_expr)*
         let operation = pairs.next().unwrap();
-        let rhs = eval_expression(pairs.next().unwrap(), tags)?;
+        let rhs = eval_expression(pairs.next().unwrap())?;
         match operation.as_rule() {
-            Rule::and => lhs = lhs && rhs,
-            Rule::or => lhs = lhs || rhs,
+            Rule::and => lhs = Searcher::new_and(lhs, rhs),
+            Rule::or => lhs = Searcher::new_or(lhs, rhs),
             op => {
                 return Err(TaggerError::ParserImplementation(format!(
                     "unsupported binary operation {op:?}"
@@ -29,154 +25,87 @@ fn eval_binary_expr(
     Ok(lhs)
 }
 
-// Expand regex with anchors to match whole string
-// Should regex be put in non-capture-group (?: ) for safety?
-pub fn expand_regex(regex: &str) -> String {
-    format!("^{regex}$")
-}
-
-// Returnvalue references keys in @tags
-fn get_values_by_tag_regex<'a>(
-    tags: &'a HashMap<String, Option<String>>,
-    tag_regex: &str,
-) -> Result<Vec<&'a Option<String>>, TaggerError> {
-    let mut result: Vec<&'a Option<String>> = Vec::new();
-    let tag_re = Regex::new(&expand_regex(tag_regex)).map_err(|err| TaggerError::Regex(err))?;
-    for (tag, value) in tags {
-        if tag_re.is_match(tag) {
-            result.push(value);
-        }
-    }
-    Ok(result)
-}
-
-fn eval_tag(pair: Pair<Rule>, tags: &HashMap<String, Option<String>>) -> Result<bool, TaggerError> {
+fn eval_tag(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
     let tag_regex = pair.as_str();
-    let matches = get_values_by_tag_regex(tags, tag_regex)?;
-    Ok(!matches.is_empty())
+    Searcher::new_tag(tag_regex)
 }
 
-fn eval_unary_expr(
-    pair: Pair<Rule>,
-    tags: &HashMap<String, Option<String>>,
-) -> Result<bool, TaggerError> {
+fn eval_unary_expr(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
     let mut pairs = pair.into_inner();
     let first = pairs.next().unwrap();
     if pairs.peek().is_some() {
         // unary_op ~ unary_expr
         let operation = first;
-        let rhs = pairs.next().unwrap();
+        let rhs = eval_expression(pairs.next().unwrap())?;
         match operation.as_rule() {
-            Rule::not => Ok(!eval_expression(rhs, tags)?),
+            Rule::not => Ok(Searcher::new_not(rhs)),
             op => Err(TaggerError::ParserImplementation(format!(
                 "unsupported unary operation {op:?}"
             ))),
         }
     } else {
         // comparison
-        eval_expression(first, tags)
+        eval_expression(first)
     }
-}
-
-fn compare_inequality<T: std::str::FromStr + std::cmp::PartialOrd>(
-    rule: Rule,
-    a: &str,
-    b: &str,
-) -> Result<bool, TaggerError> {
-    if let Ok(a) = a.parse::<T>() {
-        if let Ok(b) = b.parse::<T>() {
-            return match rule {
-                Rule::less => Ok(a < b),
-                Rule::less_equal => Ok(a <= b),
-                Rule::greater => Ok(a > b),
-                Rule::greater_equal => Ok(a >= b),
-                op => Err(TaggerError::ParserImplementation(format!(
-                    "unsupported comparison operation {op:?}"
-                ))),
-            };
-        }
-    }
-    Ok(false)
 }
 
 // Equality is tested as regex, inequality operators are done after conversion
 // to int
-fn eval_comparison(
-    pair: Pair<Rule>,
-    tags: &HashMap<String, Option<String>>,
-) -> Result<bool, TaggerError> {
+fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
     let mut pairs = pair.into_inner();
     let lhs = pairs.next().unwrap();
     if pairs.peek().is_some() {
         // tag ~ comparison_op ~ value
         let tag_regex = lhs.as_str();
         let operation = pairs.next().unwrap();
-        let search_value = pairs.next().unwrap().as_str();
-        let value_re =
-            Regex::new(&expand_regex(search_value)).map_err(|err| TaggerError::Regex(err))?;
+        let value = pairs.next().unwrap().as_str();
 
-        // iterating values of all tags that match tag_regex
-        for value in get_values_by_tag_regex(tags, tag_regex)? {
-            match value {
-                Some(tag_value) => match operation.as_rule() {
-                    Rule::equal => {
-                        // equality treats search_value as regex
-                        if value_re.is_match(tag_value) {
-                            // a value of some tag matches
-                            return Ok(true);
-                        }
-                    }
-                    // inequality treats search_value as integer
-                    op => {
-                        if compare_inequality::<i32>(op, tag_value, search_value)? {
-                            // a value of some tag matches
-                            return Ok(true);
-                        }
-                    }
-                },
-                None => (), // This tag has no value, go on
-            }
+        match operation.as_rule() {
+            Rule::equal => Searcher::new_equal(tag_regex, value),
+            Rule::less => Searcher::new_less(tag_regex, value),
+            Rule::less_equal => Searcher::new_less_equal(tag_regex, value),
+            Rule::greater => Searcher::new_greater(tag_regex, value),
+            Rule::greater_equal => Searcher::new_greater_equal(tag_regex, value),
+            op => Err(TaggerError::ParserImplementation(format!(
+                "unsupported comparison operation {op:?}"
+            ))),
         }
-        Ok(false) // no value of any matching tag matched
     } else {
         // primary
-        eval_expression(lhs, tags)
+        eval_expression(lhs)
     }
 }
 
-fn eval_expression(
-    pair: Pair<Rule>,
-    tags: &HashMap<String, Option<String>>,
-) -> Result<bool, TaggerError> {
+fn eval_expression(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
     match pair.as_rule() {
-        Rule::tag_with_regex => eval_tag(pair, tags),
-        Rule::binary_expr => eval_binary_expr(pair, tags),
-        Rule::unary_expr => eval_unary_expr(pair, tags),
-        Rule::comparison => eval_comparison(pair, tags),
+        Rule::tag_with_regex => eval_tag(pair),
+        Rule::binary_expr => eval_binary_expr(pair),
+        Rule::unary_expr => eval_unary_expr(pair),
+        Rule::comparison => eval_comparison(pair),
         rule => Err(TaggerError::ParserImplementation(format!(
             "unexpected grammar rule {rule:?}"
         ))),
     }
 }
 
-/// Returns true if tags match the search term
-pub fn search(term: &str, tags: &HashMap<String, Option<String>>) -> Result<bool, TaggerError> {
+pub fn compile_search(term: &str) -> Result<Searcher, TaggerError> {
     // parse returns array of one rule + EOI. Start with first element here
     let pair = SearchParser::parse(Rule::search, term)
         .map_err(|err| TaggerError::Parser(err))?
         .next()
         .unwrap();
-    eval_expression(pair, tags)
+    eval_expression(pair)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::search;
+    use super::compile_search;
     use crate::parse_tags::csl_to_map;
 
     fn find_in_string(term: &str, string: &str) -> bool {
-        let map = csl_to_map(string).unwrap();
-        search(term, &map).unwrap()
+        let tags = csl_to_map(string).unwrap();
+        let searcher = compile_search(term).unwrap();
+        searcher.is_match(&tags)
     }
 
     #[test]
