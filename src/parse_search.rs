@@ -159,10 +159,8 @@ fn eval_expression(
     }
 }
 
-pub fn parse_search(
-    term: &str,
-    tags: &HashMap<String, Option<String>>,
-) -> Result<bool, TaggerError> {
+/// Returns true if tags match the search term
+pub fn search(term: &str, tags: &HashMap<String, Option<String>>) -> Result<bool, TaggerError> {
     // parse returns array of one rule + EOI. Start with first element here
     let pair = SearchParser::parse(Rule::search, term)
         .map_err(|err| TaggerError::Parser(err))?
@@ -173,12 +171,12 @@ pub fn parse_search(
 
 #[cfg(test)]
 mod tests {
-    use super::parse_search;
+    use super::search;
     use crate::parse_tags::csl_to_map;
 
     fn find_in_string(term: &str, string: &str) -> bool {
         let map = csl_to_map(string).unwrap();
-        parse_search(term, &map).unwrap()
+        search(term, &map).unwrap()
     }
 
     #[test]

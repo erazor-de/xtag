@@ -4,6 +4,7 @@ mod parse_tags;
 mod parser;
 
 pub use crate::error::TaggerError;
+pub use crate::parse_search::search;
 pub use crate::parse_tags::csl_to_map;
 use crate::parser::Rule;
 use itertools::Itertools;
@@ -50,10 +51,4 @@ pub fn delete_tags(path: &PathBuf) -> Result<(), TaggerError> {
         Err(err) if err.to_string().starts_with("No data available") => Ok(()),
         Err(err) => Err(TaggerError::File(err)),
     }
-}
-
-/// Returns true if file matches the search term
-pub fn find_tags(path: &PathBuf, term: &str) -> Result<bool, TaggerError> {
-    let tags = get_tags(&path)?;
-    parse_search::parse_search(term, &tags)
 }
