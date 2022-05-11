@@ -8,6 +8,7 @@ pub use crate::parse_search::search;
 pub use crate::parse_tags::csl_to_map;
 use crate::parser::Rule;
 use itertools::Itertools;
+use regex::Regex;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str;
@@ -50,5 +51,51 @@ pub fn delete_tags(path: &PathBuf) -> Result<(), TaggerError> {
         Ok(()) => Ok(()),
         Err(err) if err.to_string().starts_with("No data available") => Ok(()),
         Err(err) => Err(TaggerError::File(err)),
+    }
+}
+
+pub fn rename(
+    from: &str,
+    to: &str,
+    tags: HashMap<String, Option<String>>,
+) -> Result<HashMap<String, Option<String>>, TaggerError> {
+    let mut result: HashMap<String, Option<String>> = HashMap::with_capacity(tags.len());
+    let re =
+        Regex::new(&parse_search::expand_regex(from)).map_err(|err| TaggerError::Regex(err))?;
+    for (key, value) in tags {
+        let new_key = re.replace_all(&key, to).into_owned();
+        result.insert(new_key, value);
+    }
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rename;
+    use std::collections::HashMap;
+
+    fn test(key: &str, value: &str, from: &str, to: &str, end_key: &str) {
+        let mut map: HashMap<String, Option<String>> = HashMap::new();
+        map.insert(key.to_string(), Some(value.to_string()));
+        let map = rename(from, to, map).unwrap();
+        assert_eq!(map.len(), 1);
+        let element = map.iter().next().unwrap();
+        assert_eq!(element.0, end_key);
+        assert_eq!(element.1, &Some(value.to_string()));
+    }
+
+    #[test]
+    fn rename_supports_plain_text() {
+        test("from", "value", "from", "to", "to");
+    }
+
+    #[test]
+    fn rename_supports_regex() {
+        test("from", "value", "f(.)om", "to$1", "tor");
+    }
+
+    #[test]
+    fn rename_supports_named_capture_groups() {
+        test("from", "value", "f(?P<a>.)om", "to$a", "tor");
     }
 }

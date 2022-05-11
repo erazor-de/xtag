@@ -31,7 +31,7 @@ fn eval_binary_expr(
 
 // Expand regex with anchors to match whole string
 // Should regex be put in non-capture-group (?: ) for safety?
-fn expand_regex(regex: &str) -> String {
+pub fn expand_regex(regex: &str) -> String {
     format!("^{regex}$")
 }
 
