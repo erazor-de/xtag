@@ -174,10 +174,10 @@ pub fn parse_search(
 #[cfg(test)]
 mod tests {
     use super::parse_search;
-    use crate::parse_tags::parse_tags;
+    use crate::parse_tags::csl_to_map;
 
     fn find_in_string(term: &str, string: &str) -> bool {
-        let map = parse_tags(string).unwrap();
+        let map = csl_to_map(string).unwrap();
         parse_search(term, &map).unwrap()
     }
 

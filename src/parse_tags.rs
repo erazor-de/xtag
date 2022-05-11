@@ -33,8 +33,8 @@ fn eval_tags(
     Ok(())
 }
 
-// converts comma separated list to HashMap
-pub fn parse_tags(string: &str) -> Result<HashMap<String, Option<String>>, TaggerError> {
+/// Convert comma separated list of tag=value pairs to map
+pub fn csl_to_map(string: &str) -> Result<HashMap<String, Option<String>>, TaggerError> {
     let mut result: HashMap<String, Option<String>> = HashMap::new();
 
     // pairs = Array of tag_with_value with final EOI
@@ -46,11 +46,11 @@ pub fn parse_tags(string: &str) -> Result<HashMap<String, Option<String>>, Tagge
 
 #[cfg(test)]
 mod tests {
-    use super::parse_tags;
+    use super::csl_to_map;
 
     #[test]
     fn grammar_tags_support_spaces() {
-        let result = std::panic::catch_unwind(|| parse_tags("a , b = c"));
+        let result = std::panic::catch_unwind(|| csl_to_map("a , b = c"));
         assert!(result.is_ok());
     }
 }
