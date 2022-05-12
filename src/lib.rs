@@ -57,14 +57,14 @@ pub fn delete_tags(path: &PathBuf) -> Result<(), TaggerError> {
 }
 
 pub fn rename(
-    from: &str,
-    to: &str,
+    find: &str,
+    replace: &str,
     tags: HashMap<String, Option<String>>,
 ) -> Result<HashMap<String, Option<String>>, TaggerError> {
     let mut result: HashMap<String, Option<String>> = HashMap::with_capacity(tags.len());
-    let re = Regex::new(&searcher::expand_regex(from)).map_err(|err| TaggerError::Regex(err))?;
+    let re = Regex::new(&searcher::expand_regex(find)).map_err(|err| TaggerError::Regex(err))?;
     for (key, value) in tags {
-        let new_key = re.replace_all(&key, to).into_owned();
+        let new_key = re.replace_all(&key, replace).into_owned();
         result.insert(new_key, value);
     }
     Ok(result)
