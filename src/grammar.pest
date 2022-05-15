@@ -7,12 +7,13 @@ primary = _{ tag_with_regex | "(" ~ expression ~ ")" }
 tag_with_regex = @{ (tag_chars_without_parentheses | regex_group)+ }
 value_with_regex = @{ tag_with_regex }
 
-comparison_op = _{ equal | less_equal | less | greater_equal | greater }
+comparison_op = _{ equal | inequal | less_equal | less | greater_equal | greater }
 less = { "<" }
 less_equal = { "<=" }
 greater = { ">" }
 greater_equal = { ">=" }
 equal = { "==" }
+inequal = { "!=" }
 
 unary_op = _{ not }
 not = { ^"not" | "!" }

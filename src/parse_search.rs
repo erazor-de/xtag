@@ -62,6 +62,7 @@ fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
 
         match operation.as_rule() {
             Rule::equal => Searcher::new_equal(tag_regex, value),
+            Rule::inequal => Searcher::new_inequal(tag_regex, value),
             Rule::less => Searcher::new_less(tag_regex, value),
             Rule::less_equal => Searcher::new_less_equal(tag_regex, value),
             Rule::greater => Searcher::new_greater(tag_regex, value),
@@ -135,6 +136,13 @@ mod tests {
     }
 
     #[test]
+    fn grammar_tag_matches_are_case_sensitive() {
+        assert!(find_in_string("a && !A", "a") == true);
+        assert!(find_in_string("a && !A", "a,A") == false);
+        assert!(find_in_string("!A", "a") == true);
+    }
+
+    #[test]
     fn grammar_operator_notations_can_be_mixed() {
         assert!(find_in_string("a && b || c AND d", "c,d") == true);
         assert!(find_in_string("!a AND b", "b") == true);
@@ -162,7 +170,13 @@ mod tests {
     }
 
     #[test]
-    fn grammar_supports_int_value_inequalities() {
+    fn grammar_supports_string_value_inequality() {
+        assert!(find_in_string(".* != b", "a=c,b=d") == true);
+        assert!(find_in_string(".* != b", "a=b,b=d") == false);
+    }
+
+    #[test]
+    fn grammar_supports_int_value_relations() {
         assert!(find_in_string("a > 1 AND a < 3", "a=2") == true);
         assert!(find_in_string("a > 1 AND a < 3", "a=1") == false);
         assert!(find_in_string("a > 1 AND a < 3", "a=3") == false);

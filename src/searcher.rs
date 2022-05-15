@@ -74,6 +74,11 @@ impl Searcher {
         })
     }
 
+    pub fn new_inequal(tag_regex: &str, value_regex: &str) -> Result<Self, TaggerError> {
+        let equal = Searcher::new_equal(tag_regex, value_regex)?;
+        Ok(Searcher::new_not(equal))
+    }
+
     pub fn new_less(tag_regex: &str, rhs: &str) -> Result<Self, TaggerError> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| TaggerError::Regex(err))?;
