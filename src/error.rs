@@ -2,7 +2,7 @@ use crate::Rule;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum TaggerError {
+pub enum XTagError {
     #[error("io error")]
     File(#[from] ::std::io::Error), // FIXME check
 

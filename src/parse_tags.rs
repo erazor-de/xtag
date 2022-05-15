@@ -1,4 +1,4 @@
-use crate::error::TaggerError;
+use crate::error::XTagError;
 use crate::parser::Rule;
 use crate::parser::SearchParser;
 use pest::iterators::Pair;
@@ -16,14 +16,14 @@ fn eval_tag_with_value(pair: Pair<Rule>, container: &mut HashMap<String, Option<
 fn eval_tags(
     pairs: &mut Pairs<Rule>,
     container: &mut HashMap<String, Option<String>>,
-) -> Result<(), TaggerError> {
+) -> Result<(), XTagError> {
     while pairs.peek().is_some() {
         let thing = pairs.next().unwrap();
         match thing.as_rule() {
             Rule::tag_with_value => eval_tag_with_value(thing, container),
             Rule::EOI => (),
             other => {
-                return Err(TaggerError::ParserImplementation(format!(
+                return Err(XTagError::ParserImplementation(format!(
                     "unexpected rule {:?}",
                     other
                 )));
@@ -34,12 +34,12 @@ fn eval_tags(
 }
 
 /// Convert comma separated list of tag=value pairs to map
-pub fn csl_to_map(string: &str) -> Result<HashMap<String, Option<String>>, TaggerError> {
+pub fn csl_to_map(string: &str) -> Result<HashMap<String, Option<String>>, XTagError> {
     let mut result: HashMap<String, Option<String>> = HashMap::new();
 
     // pairs = Array of tag_with_value with final EOI
     let mut pairs = SearchParser::parse(Rule::comma_separated_tags_with_values, string)
-        .map_err(|err| TaggerError::Parser(err))?;
+        .map_err(|err| XTagError::Parser(err))?;
     eval_tags(&mut pairs, &mut result)?;
     Ok(result)
 }

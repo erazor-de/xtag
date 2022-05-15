@@ -4,7 +4,7 @@ mod parse_tags;
 mod parser;
 mod searcher;
 
-pub use crate::error::TaggerError;
+pub use crate::error::XTagError;
 pub use crate::parse_search::compile_search;
 pub use crate::parse_tags::csl_to_map;
 use crate::parser::Rule;
@@ -28,11 +28,11 @@ pub fn map_to_csl(set: &HashMap<String, Option<String>>) -> String {
 }
 
 /// Get tags for file as map
-pub fn get_tags(path: &PathBuf) -> Result<HashMap<String, Option<String>>, TaggerError> {
-    let xattrs = xattr::get(path, XATTR_NAME).map_err(|err| TaggerError::File(err))?;
+pub fn get_tags(path: &PathBuf) -> Result<HashMap<String, Option<String>>, XTagError> {
+    let xattrs = xattr::get(path, XATTR_NAME).map_err(|err| XTagError::File(err))?;
     match xattrs {
         Some(value) => {
-            let string = str::from_utf8(&value).map_err(|err| TaggerError::Charset(err))?;
+            let string = str::from_utf8(&value).map_err(|err| XTagError::Charset(err))?;
             csl_to_map(string)
         }
         None => csl_to_map(""),
@@ -42,17 +42,17 @@ pub fn get_tags(path: &PathBuf) -> Result<HashMap<String, Option<String>>, Tagge
 /// Set tags for file from map
 ///
 /// The used utf-8 string format is architecture independent.
-pub fn set_tags(path: &PathBuf, tags: &HashMap<String, Option<String>>) -> Result<(), TaggerError> {
+pub fn set_tags(path: &PathBuf, tags: &HashMap<String, Option<String>>) -> Result<(), XTagError> {
     let string = map_to_csl(tags);
-    xattr::set(path, XATTR_NAME, &string.as_bytes()).map_err(|err| TaggerError::File(err))
+    xattr::set(path, XATTR_NAME, &string.as_bytes()).map_err(|err| XTagError::File(err))
 }
 
 /// Delete all tags for file
-pub fn delete_tags(path: &PathBuf) -> Result<(), TaggerError> {
+pub fn delete_tags(path: &PathBuf) -> Result<(), XTagError> {
     match xattr::remove(path, XATTR_NAME) {
         Ok(()) => Ok(()),
         Err(err) if err.to_string().starts_with("No data available") => Ok(()),
-        Err(err) => Err(TaggerError::File(err)),
+        Err(err) => Err(XTagError::File(err)),
     }
 }
 
@@ -60,9 +60,9 @@ pub fn rename(
     find: &str,
     replace: &str,
     tags: HashMap<String, Option<String>>,
-) -> Result<HashMap<String, Option<String>>, TaggerError> {
+) -> Result<HashMap<String, Option<String>>, XTagError> {
     let mut result: HashMap<String, Option<String>> = HashMap::with_capacity(tags.len());
-    let re = Regex::new(&searcher::expand_regex(find)).map_err(|err| TaggerError::Regex(err))?;
+    let re = Regex::new(&searcher::expand_regex(find)).map_err(|err| XTagError::Regex(err))?;
     for (key, value) in tags {
         let new_key = re.replace_all(&key, replace).into_owned();
         result.insert(new_key, value);

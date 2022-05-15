@@ -1,11 +1,11 @@
-use crate::error::TaggerError;
+use crate::error::XTagError;
 use crate::parser::Rule;
 use crate::parser::SearchParser;
 use crate::searcher::Searcher;
 use pest::iterators::Pair;
 use pest::Parser;
 
-fn eval_binary_expr(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
+fn eval_binary_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     let mut pairs = pair.into_inner();
     let mut lhs = eval_expression(pairs.next().unwrap())?;
     while pairs.peek().is_some() {
@@ -16,7 +16,7 @@ fn eval_binary_expr(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
             Rule::and => lhs = Searcher::new_and(lhs, rhs),
             Rule::or => lhs = Searcher::new_or(lhs, rhs),
             op => {
-                return Err(TaggerError::ParserImplementation(format!(
+                return Err(XTagError::ParserImplementation(format!(
                     "unsupported binary operation {op:?}"
                 )))
             }
@@ -25,12 +25,12 @@ fn eval_binary_expr(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
     Ok(lhs)
 }
 
-fn eval_tag(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
+fn eval_tag(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     let tag_regex = pair.as_str();
     Searcher::new_tag(tag_regex)
 }
 
-fn eval_unary_expr(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
+fn eval_unary_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     let mut pairs = pair.into_inner();
     let first = pairs.next().unwrap();
     if pairs.peek().is_some() {
@@ -39,7 +39,7 @@ fn eval_unary_expr(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
         let rhs = eval_expression(pairs.next().unwrap())?;
         match operation.as_rule() {
             Rule::not => Ok(Searcher::new_not(rhs)),
-            op => Err(TaggerError::ParserImplementation(format!(
+            op => Err(XTagError::ParserImplementation(format!(
                 "unsupported unary operation {op:?}"
             ))),
         }
@@ -51,7 +51,7 @@ fn eval_unary_expr(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
 
 // Equality is tested as regex, inequality operators are done after conversion
 // to int
-fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
+fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     let mut pairs = pair.into_inner();
     let lhs = pairs.next().unwrap();
     if pairs.peek().is_some() {
@@ -67,7 +67,7 @@ fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
             Rule::less_equal => Searcher::new_less_equal(tag_regex, value),
             Rule::greater => Searcher::new_greater(tag_regex, value),
             Rule::greater_equal => Searcher::new_greater_equal(tag_regex, value),
-            op => Err(TaggerError::ParserImplementation(format!(
+            op => Err(XTagError::ParserImplementation(format!(
                 "unsupported comparison operation {op:?}"
             ))),
         }
@@ -77,22 +77,22 @@ fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
     }
 }
 
-fn eval_expression(pair: Pair<Rule>) -> Result<Searcher, TaggerError> {
+fn eval_expression(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     match pair.as_rule() {
         Rule::tag_with_regex => eval_tag(pair),
         Rule::binary_expr => eval_binary_expr(pair),
         Rule::unary_expr => eval_unary_expr(pair),
         Rule::comparison => eval_comparison(pair),
-        rule => Err(TaggerError::ParserImplementation(format!(
+        rule => Err(XTagError::ParserImplementation(format!(
             "unexpected grammar rule {rule:?}"
         ))),
     }
 }
 
-pub fn compile_search(term: &str) -> Result<Searcher, TaggerError> {
+pub fn compile_search(term: &str) -> Result<Searcher, XTagError> {
     // parse returns array of one rule + EOI. Start with first element here
     let pair = SearchParser::parse(Rule::search, term)
-        .map_err(|err| TaggerError::Parser(err))?
+        .map_err(|err| XTagError::Parser(err))?
         .next()
         .unwrap();
     eval_expression(pair)
