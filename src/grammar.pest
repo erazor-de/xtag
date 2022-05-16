@@ -1,8 +1,9 @@
 search = _{ SOI ~ expression ~ EOI }
-expression = _{ binary_expr }
-binary_expr = { unary_expr ~ (binary_op ~ unary_expr)* }
-unary_expr = { unary_op ~ unary_expr | comparison }
-comparison = { tag_with_regex ~ comparison_op ~ value_with_regex | primary }
+expression = _{ or_expr }
+or_expr = { and_expr ~ (or ~ and_expr)* }
+and_expr = { comparison_expr ~ (and ~ comparison_expr)* }
+comparison_expr = { tag_with_regex ~ comparison_op ~ value_with_regex | not_expr }
+not_expr = { not ~ not_expr | primary }
 primary = _{ tag_with_regex | "(" ~ expression ~ ")" }
 tag_with_regex = @{ (tag_chars_without_parentheses | regex_group)+ }
 value_with_regex = @{ tag_with_regex }

@@ -5,22 +5,24 @@ use crate::searcher::Searcher;
 use pest::iterators::Pair;
 use pest::Parser;
 
-fn eval_binary_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_or_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     let mut pairs = pair.into_inner();
     let mut lhs = eval_expression(pairs.next().unwrap())?;
     while pairs.peek().is_some() {
-        // (binary_op ~ unary_expr)*
-        let operation = pairs.next().unwrap();
+        let _operation = pairs.next().unwrap();
         let rhs = eval_expression(pairs.next().unwrap())?;
-        match operation.as_rule() {
-            Rule::and => lhs = Searcher::new_and(lhs, rhs),
-            Rule::or => lhs = Searcher::new_or(lhs, rhs),
-            op => {
-                return Err(XTagError::ParserImplementation(format!(
-                    "unsupported binary operation {op:?}"
-                )))
-            }
-        };
+        lhs = Searcher::new_or(lhs, rhs);
+    }
+    Ok(lhs)
+}
+
+fn eval_and_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+    let mut pairs = pair.into_inner();
+    let mut lhs = eval_expression(pairs.next().unwrap())?;
+    while pairs.peek().is_some() {
+        let _operation = pairs.next().unwrap();
+        let rhs = eval_expression(pairs.next().unwrap())?;
+        lhs = Searcher::new_and(lhs, rhs);
     }
     Ok(lhs)
 }
@@ -30,7 +32,7 @@ fn eval_tag(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     Searcher::new_tag(tag_regex)
 }
 
-fn eval_unary_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_not_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     let mut pairs = pair.into_inner();
     let first = pairs.next().unwrap();
     if pairs.peek().is_some() {
@@ -80,9 +82,10 @@ fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
 fn eval_expression(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     match pair.as_rule() {
         Rule::tag_with_regex => eval_tag(pair),
-        Rule::binary_expr => eval_binary_expr(pair),
-        Rule::unary_expr => eval_unary_expr(pair),
-        Rule::comparison => eval_comparison(pair),
+        Rule::or_expr => eval_or_expr(pair),
+        Rule::and_expr => eval_and_expr(pair),
+        Rule::not_expr => eval_not_expr(pair),
+        Rule::comparison_expr => eval_comparison(pair),
         rule => Err(XTagError::ParserImplementation(format!(
             "unexpected grammar rule {rule:?}"
         ))),
@@ -110,10 +113,18 @@ mod tests {
     }
 
     #[test]
-    fn grammar_binary_operations_have_equal_priority_and_are_left_associative() {
+    fn grammar_or_has_lower_priority_than_and() {
         assert!(find_in_string("a AND b OR c AND d", "a,b,d") == true);
         assert!(find_in_string("a AND b OR c AND d", "c,d") == true);
-        assert!(find_in_string("a AND b OR c AND d", "a,b") == false);
+        assert!(find_in_string("a AND b OR c AND d", "a,b") == true);
+
+        assert!(find_in_string("(a AND b) OR (c AND d)", "a,b,d") == true);
+        assert!(find_in_string("(a AND b) OR (c AND d)", "c,d") == true);
+        assert!(find_in_string("(a AND b) OR (c AND d)", "a,b") == true);
+
+        assert!(find_in_string("a AND (b OR c) AND d", "a,b,d") == true);
+        assert!(find_in_string("a AND (b OR c) AND d", "c,d") == false);
+        assert!(find_in_string("a AND (b OR c) AND d", "a,b") == false);
 
         assert!(find_in_string("a AND b OR c", "a,b") == true);
         assert!(find_in_string("a AND b OR c", "c") == true);
@@ -125,7 +136,10 @@ mod tests {
         assert!(find_in_string("a AND (b OR c)", "a,b") == true);
         assert!(find_in_string("a AND (b OR c)", "a,c") == true);
         assert!(find_in_string("a AND (b OR c)", "a") == false);
+    }
 
+    #[test]
+    fn grammar_supports_not() {
         assert!(find_in_string("NOT a AND b", "a,b") == false);
         assert!(find_in_string("NOT a AND b", "b") == true);
         assert!(find_in_string("NOT a AND b", "c") == false);
