@@ -4,7 +4,7 @@ mod parse_tags;
 mod parser;
 mod searcher;
 
-pub use crate::error::XTagError;
+pub use crate::error::{Result, XTagError};
 pub use crate::parse_search::compile_search;
 pub use crate::parse_tags::csl_to_map;
 use crate::parser::Rule;
@@ -28,7 +28,7 @@ pub fn map_to_csl(set: &HashMap<String, Option<String>>) -> String {
 }
 
 /// Get tags for file as map
-pub fn get_tags(path: &PathBuf) -> Result<HashMap<String, Option<String>>, XTagError> {
+pub fn get_tags(path: &PathBuf) -> Result<HashMap<String, Option<String>>> {
     let xattrs = xattr::get(path, XATTR_NAME).map_err(|err| XTagError::File(err))?;
     match xattrs {
         Some(value) => {
@@ -42,13 +42,13 @@ pub fn get_tags(path: &PathBuf) -> Result<HashMap<String, Option<String>>, XTagE
 /// Set tags for file from map
 ///
 /// The used utf-8 string format is architecture independent.
-pub fn set_tags(path: &PathBuf, tags: &HashMap<String, Option<String>>) -> Result<(), XTagError> {
+pub fn set_tags(path: &PathBuf, tags: &HashMap<String, Option<String>>) -> Result<()> {
     let string = map_to_csl(tags);
     xattr::set(path, XATTR_NAME, &string.as_bytes()).map_err(|err| XTagError::File(err))
 }
 
 /// Delete all tags for file
-pub fn delete_tags(path: &PathBuf) -> Result<(), XTagError> {
+pub fn delete_tags(path: &PathBuf) -> Result<()> {
     match xattr::remove(path, XATTR_NAME) {
         Ok(()) => Ok(()),
         Err(err) if err.to_string().starts_with("No data available") => Ok(()),
@@ -60,7 +60,7 @@ pub fn rename(
     find: &str,
     replace: &str,
     tags: HashMap<String, Option<String>>,
-) -> Result<HashMap<String, Option<String>>, XTagError> {
+) -> Result<HashMap<String, Option<String>>> {
     let mut result: HashMap<String, Option<String>> = HashMap::with_capacity(tags.len());
     let re = Regex::new(&searcher::expand_regex(find)).map_err(|err| XTagError::Regex(err))?;
     for (key, value) in tags {

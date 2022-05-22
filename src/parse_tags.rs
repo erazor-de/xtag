@@ -1,4 +1,4 @@
-use crate::error::XTagError;
+use crate::error::{Result, XTagError};
 use crate::parser::Rule;
 use crate::parser::SearchParser;
 use pest::iterators::Pair;
@@ -16,7 +16,7 @@ fn eval_tag_with_value(pair: Pair<Rule>, container: &mut HashMap<String, Option<
 fn eval_tags(
     pairs: &mut Pairs<Rule>,
     container: &mut HashMap<String, Option<String>>,
-) -> Result<(), XTagError> {
+) -> Result<()> {
     while pairs.peek().is_some() {
         let thing = pairs.next().unwrap();
         match thing.as_rule() {
@@ -34,7 +34,7 @@ fn eval_tags(
 }
 
 /// Convert comma separated list of tag=value pairs to map
-pub fn csl_to_map(string: &str) -> Result<HashMap<String, Option<String>>, XTagError> {
+pub fn csl_to_map(string: &str) -> Result<HashMap<String, Option<String>>> {
     let mut result: HashMap<String, Option<String>> = HashMap::new();
 
     // pairs = Array of tag_with_value with final EOI

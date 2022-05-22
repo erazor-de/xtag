@@ -22,3 +22,5 @@ pub enum XTagError {
     #[error("int parser error")]
     IntParse(#[from] ::core::num::ParseIntError),
 }
+
+pub type Result<T> = std::result::Result<T, XTagError>;

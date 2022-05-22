@@ -1,4 +1,4 @@
-use crate::error::XTagError;
+use crate::error::{Result, XTagError};
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -58,12 +58,12 @@ impl Searcher {
         Searcher::Not { lhs: Box::new(lhs) }
     }
 
-    pub fn new_tag(regex: &str) -> Result<Self, XTagError> {
+    pub fn new_tag(regex: &str) -> Result<Self> {
         let regex = Regex::new(&expand_regex(regex)).map_err(|err| XTagError::Regex(err))?;
         Ok(Searcher::Tag { regex })
     }
 
-    pub fn new_equal(tag_regex: &str, value_regex: &str) -> Result<Self, XTagError> {
+    pub fn new_equal(tag_regex: &str, value_regex: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
         let value_regex =
@@ -74,33 +74,33 @@ impl Searcher {
         })
     }
 
-    pub fn new_inequal(tag_regex: &str, value_regex: &str) -> Result<Self, XTagError> {
+    pub fn new_inequal(tag_regex: &str, value_regex: &str) -> Result<Self> {
         let equal = Searcher::new_equal(tag_regex, value_regex)?;
         Ok(Searcher::new_not(equal))
     }
 
-    pub fn new_less(tag_regex: &str, rhs: &str) -> Result<Self, XTagError> {
+    pub fn new_less(tag_regex: &str, rhs: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
         let rhs = rhs.parse::<i32>().map_err(|err| XTagError::IntParse(err))?;
         Ok(Searcher::Less { tag_regex, rhs })
     }
 
-    pub fn new_less_equal(tag_regex: &str, rhs: &str) -> Result<Self, XTagError> {
+    pub fn new_less_equal(tag_regex: &str, rhs: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
         let rhs = rhs.parse::<i32>().map_err(|err| XTagError::IntParse(err))?;
         Ok(Searcher::LessEqual { tag_regex, rhs })
     }
 
-    pub fn new_greater(tag_regex: &str, rhs: &str) -> Result<Self, XTagError> {
+    pub fn new_greater(tag_regex: &str, rhs: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
         let rhs = rhs.parse::<i32>().map_err(|err| XTagError::IntParse(err))?;
         Ok(Searcher::Greater { tag_regex, rhs })
     }
 
-    pub fn new_greater_equal(tag_regex: &str, rhs: &str) -> Result<Self, XTagError> {
+    pub fn new_greater_equal(tag_regex: &str, rhs: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
         let rhs = rhs.parse::<i32>().map_err(|err| XTagError::IntParse(err))?;

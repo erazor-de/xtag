@@ -1,11 +1,11 @@
-use crate::error::XTagError;
+use crate::error::{Result, XTagError};
 use crate::parser::Rule;
 use crate::parser::SearchParser;
 use crate::searcher::Searcher;
 use pest::iterators::Pair;
 use pest::Parser;
 
-fn eval_or_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_or_expr(pair: Pair<Rule>) -> Result<Searcher> {
     let mut pairs = pair.into_inner();
     let mut lhs = eval_expression(pairs.next().unwrap())?;
     while pairs.peek().is_some() {
@@ -16,7 +16,7 @@ fn eval_or_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     Ok(lhs)
 }
 
-fn eval_and_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_and_expr(pair: Pair<Rule>) -> Result<Searcher> {
     let mut pairs = pair.into_inner();
     let mut lhs = eval_expression(pairs.next().unwrap())?;
     while pairs.peek().is_some() {
@@ -27,12 +27,12 @@ fn eval_and_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     Ok(lhs)
 }
 
-fn eval_tag(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_tag(pair: Pair<Rule>) -> Result<Searcher> {
     let tag_regex = pair.as_str();
     Searcher::new_tag(tag_regex)
 }
 
-fn eval_not_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_not_expr(pair: Pair<Rule>) -> Result<Searcher> {
     let mut pairs = pair.into_inner();
     let first = pairs.next().unwrap();
     if pairs.peek().is_some() {
@@ -53,7 +53,7 @@ fn eval_not_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
 
 // Equality is tested as regex, inequality operators are done after conversion
 // to int
-fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher> {
     let mut pairs = pair.into_inner();
     let lhs = pairs.next().unwrap();
     if pairs.peek().is_some() {
@@ -79,7 +79,7 @@ fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     }
 }
 
-fn eval_expression(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_expression(pair: Pair<Rule>) -> Result<Searcher> {
     match pair.as_rule() {
         Rule::tag_with_regex => eval_tag(pair),
         Rule::or_expr => eval_or_expr(pair),
@@ -92,7 +92,7 @@ fn eval_expression(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     }
 }
 
-pub fn compile_search(term: &str) -> Result<Searcher, XTagError> {
+pub fn compile_search(term: &str) -> Result<Searcher> {
     // parse returns array of one rule + EOI. Start with first element here
     let pair = SearchParser::parse(Rule::search, term)
         .map_err(|err| XTagError::Parser(err))?
