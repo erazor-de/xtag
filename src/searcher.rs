@@ -1,6 +1,7 @@
 use crate::error::{Result, XTagError};
 use regex::Regex;
 use std::collections::HashMap;
+use std::fmt;
 
 pub enum Searcher {
     And {
@@ -23,19 +24,19 @@ pub enum Searcher {
     },
     Less {
         tag_regex: Regex,
-        rhs: i32,
+        value: i32,
     },
     LessEqual {
         tag_regex: Regex,
-        rhs: i32,
+        value: i32,
     },
     Greater {
         tag_regex: Regex,
-        rhs: i32,
+        value: i32,
     },
     GreaterEqual {
         tag_regex: Regex,
-        rhs: i32,
+        value: i32,
     },
 }
 
@@ -79,32 +80,40 @@ impl Searcher {
         Ok(Searcher::new_not(equal))
     }
 
-    pub fn new_less(tag_regex: &str, rhs: &str) -> Result<Self> {
+    pub fn new_less(tag_regex: &str, value: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
-        let rhs = rhs.parse::<i32>().map_err(|err| XTagError::IntParse(err))?;
-        Ok(Searcher::Less { tag_regex, rhs })
+        let value = value
+            .parse::<i32>()
+            .map_err(|err| XTagError::IntParse(err))?;
+        Ok(Searcher::Less { tag_regex, value })
     }
 
-    pub fn new_less_equal(tag_regex: &str, rhs: &str) -> Result<Self> {
+    pub fn new_less_equal(tag_regex: &str, value: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
-        let rhs = rhs.parse::<i32>().map_err(|err| XTagError::IntParse(err))?;
-        Ok(Searcher::LessEqual { tag_regex, rhs })
+        let value = value
+            .parse::<i32>()
+            .map_err(|err| XTagError::IntParse(err))?;
+        Ok(Searcher::LessEqual { tag_regex, value })
     }
 
-    pub fn new_greater(tag_regex: &str, rhs: &str) -> Result<Self> {
+    pub fn new_greater(tag_regex: &str, value: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
-        let rhs = rhs.parse::<i32>().map_err(|err| XTagError::IntParse(err))?;
-        Ok(Searcher::Greater { tag_regex, rhs })
+        let value = value
+            .parse::<i32>()
+            .map_err(|err| XTagError::IntParse(err))?;
+        Ok(Searcher::Greater { tag_regex, value })
     }
 
-    pub fn new_greater_equal(tag_regex: &str, rhs: &str) -> Result<Self> {
+    pub fn new_greater_equal(tag_regex: &str, value: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
-        let rhs = rhs.parse::<i32>().map_err(|err| XTagError::IntParse(err))?;
-        Ok(Searcher::GreaterEqual { tag_regex, rhs })
+        let value = value
+            .parse::<i32>()
+            .map_err(|err| XTagError::IntParse(err))?;
+        Ok(Searcher::GreaterEqual { tag_regex, value })
     }
 
     pub fn is_match(&self, tags: &HashMap<String, Option<String>>) -> bool {
@@ -135,38 +144,58 @@ impl Searcher {
             } => check_values_by_tag_regex(tags, tag_regex, |tag_value: &str| -> bool {
                 value_regex.is_match(tag_value)
             }),
-            Searcher::Less { tag_regex, rhs } => {
+            Searcher::Less { tag_regex, value } => {
                 check_values_by_tag_regex(tags, tag_regex, |tag_value: &str| -> bool {
                     if let Ok(tag_value) = tag_value.parse::<i32>() {
-                        return tag_value < *rhs;
+                        return tag_value < *value;
                     }
                     false
                 })
             }
-            Searcher::LessEqual { tag_regex, rhs } => {
+            Searcher::LessEqual { tag_regex, value } => {
                 check_values_by_tag_regex(tags, tag_regex, |tag_value: &str| -> bool {
                     if let Ok(tag_value) = tag_value.parse::<i32>() {
-                        return tag_value <= *rhs;
+                        return tag_value <= *value;
                     }
                     false
                 })
             }
-            Searcher::Greater { tag_regex, rhs } => {
+            Searcher::Greater { tag_regex, value } => {
                 check_values_by_tag_regex(tags, tag_regex, |tag_value: &str| -> bool {
                     if let Ok(tag_value) = tag_value.parse::<i32>() {
-                        return tag_value > *rhs;
+                        return tag_value > *value;
                     }
                     false
                 })
             }
-            Searcher::GreaterEqual { tag_regex, rhs } => {
+            Searcher::GreaterEqual { tag_regex, value } => {
                 check_values_by_tag_regex(tags, tag_regex, |tag_value: &str| -> bool {
                     if let Ok(tag_value) = tag_value.parse::<i32>() {
-                        return tag_value >= *rhs;
+                        return tag_value >= *value;
                     }
                     false
                 })
             }
+        }
+    }
+}
+
+/// Doesn't necessarily reproduce the exact term this Searcher resulted from.
+impl fmt::Display for Searcher {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Searcher::And { lhs, rhs } => write!(f, "({}) AND ({})", lhs, rhs),
+            Searcher::Or { lhs, rhs } => write!(f, "({}) OR ({})", lhs, rhs),
+            Searcher::Not { lhs } => write!(f, "NOT ({})", lhs),
+            Searcher::Tag { regex } => write!(f, "{}", regex),
+            Searcher::Equal {
+                tag_regex,
+                value_regex,
+            } => write!(f, "{} == {}", tag_regex, value_regex),
+            Searcher::Less { tag_regex, value } => write!(f, "{} < {}", tag_regex, value),
+            Searcher::LessEqual { tag_regex, value } => write!(f, "{} <= {}", tag_regex, value),
+            Searcher::Greater { tag_regex, value } => write!(f, "{} > {}", tag_regex, value),
+            Searcher::GreaterEqual { tag_regex, value } => write!(f, "{} >= {}", tag_regex, value),
         }
     }
 }
@@ -209,8 +238,32 @@ where
     false
 }
 
-// Expand regex with anchors to match whole string
+/// Expand regex with anchors to match whole string
+///
+/// Doesn't do anything if first and last characters are matching anchors.
 // TODO Should regex be put in non-capture-group (?: ) for safety?
 pub fn expand_regex(regex: &str) -> String {
-    format!("^{regex}$")
+    if regex.starts_with('^') && regex.ends_with('$') {
+        regex.to_owned()
+    } else {
+        format!("^{regex}$")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    fn test_stability(term: &str) {
+        let term2 = format!("{}", compile_search(term).unwrap());
+        let term3 = format!("{}", compile_search(&term2).unwrap());
+        assert_eq!(term2, term3);
+    }
+
+    #[test]
+    fn display_is_stable() {
+        test_stability("a or b and c");
+        test_stability("(a or b) and c");
+        test_stability("a or (b and c)");
+    }
 }
