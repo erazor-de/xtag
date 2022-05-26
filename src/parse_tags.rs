@@ -6,17 +6,16 @@ use pest::iterators::Pairs;
 use pest::Parser;
 use std::collections::HashMap;
 
-fn eval_tag_with_value(pair: Pair<Rule>, container: &mut HashMap<String, Option<String>>) {
+use crate::XTags;
+
+fn eval_tag_with_value(pair: Pair<Rule>, container: &mut XTags) {
     let mut pairs = pair.into_inner();
     let tag = pairs.next().unwrap().as_str().to_string();
     let value = pairs.next().map(|v| v.as_str().to_string());
     container.insert(tag, value);
 }
 
-fn eval_tags(
-    pairs: &mut Pairs<Rule>,
-    container: &mut HashMap<String, Option<String>>,
-) -> Result<()> {
+fn eval_tags(pairs: &mut Pairs<Rule>, container: &mut XTags) -> Result<()> {
     while pairs.peek().is_some() {
         let thing = pairs.next().unwrap();
         match thing.as_rule() {
@@ -34,8 +33,8 @@ fn eval_tags(
 }
 
 /// Convert comma separated list of tag=value pairs to map
-pub fn csl_to_map(string: &str) -> Result<HashMap<String, Option<String>>> {
-    let mut result: HashMap<String, Option<String>> = HashMap::new();
+pub fn csl_to_map(string: &str) -> Result<XTags> {
+    let mut result: XTags = HashMap::new();
 
     // pairs = Array of tag_with_value with final EOI
     let mut pairs = SearchParser::parse(Rule::comma_separated_tags_with_values, string)

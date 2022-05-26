@@ -1,6 +1,6 @@
 use crate::error::{Result, XTagError};
+use crate::XTags;
 use regex::Regex;
-use std::collections::HashMap;
 use std::fmt;
 
 pub enum Searcher {
@@ -116,7 +116,8 @@ impl Searcher {
         Ok(Searcher::GreaterEqual { tag_regex, value })
     }
 
-    pub fn is_match(&self, tags: &HashMap<String, Option<String>>) -> bool {
+    /// Evaluates Searcher against tags.
+    pub fn is_match(&self, tags: &XTags) -> bool {
         match self {
             Searcher::And { lhs, rhs } => {
                 let l = lhs.is_match(tags);
@@ -201,10 +202,7 @@ impl fmt::Display for Searcher {
 }
 
 // Returnvalue references keys in @tags
-fn get_values_by_tag_regex<'a>(
-    tags: &'a HashMap<String, Option<String>>,
-    tag_regex: &Regex,
-) -> Vec<&'a Option<String>> {
+fn get_values_by_tag_regex<'a>(tags: &'a XTags, tag_regex: &Regex) -> Vec<&'a Option<String>> {
     let mut result: Vec<&'a Option<String>> = Vec::new();
     for (tag, value) in tags {
         if tag_regex.is_match(tag) {
@@ -215,11 +213,7 @@ fn get_values_by_tag_regex<'a>(
 }
 
 // Returns true if one value of matching tags passes test
-fn check_values_by_tag_regex<F>(
-    tags: &HashMap<String, Option<String>>,
-    tag_regex: &Regex,
-    test: F,
-) -> bool
+fn check_values_by_tag_regex<F>(tags: &XTags, tag_regex: &Regex, test: F) -> bool
 where
     F: Fn(&str) -> bool,
 {
