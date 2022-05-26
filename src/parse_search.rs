@@ -92,6 +92,23 @@ fn eval_expression(pair: Pair<Rule>) -> Result<Searcher> {
     }
 }
 
+/// Compiles a fast search structure out of expression.
+///
+/// Parses term and returns a tree structure of Searcher elements.
+///
+/// # Example
+///
+/// ```
+/// # use std::collections::HashMap;
+/// # use xtag::XTags;
+/// let mut tags: XTags = HashMap::new();
+/// tags.insert("foo".to_string(), None);
+/// tags.insert("bar".to_string(), None);
+/// let search = xtag::compile_search("foo and bar").unwrap();
+/// assert!(search.is_match(&tags) == true);
+/// ```
+/// # Errors
+/// - XTagError::Parser
 pub fn compile_search(term: &str) -> Result<Searcher> {
     // parse returns array of one rule + EOI. Start with first element here
     let pair = SearchParser::parse(Rule::search, term)

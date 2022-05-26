@@ -3,44 +3,63 @@ use crate::XTags;
 use regex::Regex;
 use std::fmt;
 
+/// Searcher variants.
 pub enum Searcher {
+    /// Logical and.
     And {
         lhs: Box<Searcher>,
         rhs: Box<Searcher>,
     },
+
+    /// Logical or.
     Or {
         lhs: Box<Searcher>,
         rhs: Box<Searcher>,
     },
-    Not {
-        lhs: Box<Searcher>,
-    },
-    Tag {
-        regex: Regex,
-    },
+
+    /// Logical not.
+    Not { lhs: Box<Searcher> },
+
+    /// Matches tag.
+    Tag { regex: Regex },
+
+    /// Matches value.
     Equal {
         tag_regex: Regex,
         value_regex: Regex,
     },
-    Less {
-        tag_regex: Regex,
-        value: i32,
-    },
-    LessEqual {
-        tag_regex: Regex,
-        value: i32,
-    },
-    Greater {
-        tag_regex: Regex,
-        value: i32,
-    },
-    GreaterEqual {
-        tag_regex: Regex,
-        value: i32,
-    },
+
+    /// Matches if integer value is less than value.    
+    Less { tag_regex: Regex, value: i32 },
+
+    /// Matches if integer value is less or equal than rhs.
+    LessEqual { tag_regex: Regex, value: i32 },
+
+    /// Matches if integer value is greater than rhs.
+    Greater { tag_regex: Regex, value: i32 },
+
+    /// Matches if integer value is greater or equal than rhs.
+    GreaterEqual { tag_regex: Regex, value: i32 },
 }
 
 impl Searcher {
+    /// Returns new and Searcher.
+    ///
+    /// Matches when both elements match. Uses short-circuit evaluation. That means that when
+    /// the left arm is already false, the right arm is not executed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use xtag::Searcher;
+    /// # use xtag::XTags;
+    /// let mut tags: XTags = HashMap::new();
+    /// tags.insert("foo".to_string(), None);
+    /// tags.insert("bar".to_string(), None);
+    /// let search = Searcher::new_and(Searcher::new_tag("foo").unwrap(), Searcher::new_tag("bar").unwrap());
+    /// assert!(search.is_match(&tags) == true);
+    /// ```
     pub fn new_and(lhs: Searcher, rhs: Searcher) -> Self {
         Searcher::And {
             lhs: Box::new(lhs),
@@ -48,6 +67,22 @@ impl Searcher {
         }
     }
 
+    /// Returns new or Searcher.
+    ///
+    /// Matches when at least one element matches. Uses short-circuit evaluation. That means that when
+    /// the left arm matches already, the right arm is not executed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use xtag::Searcher;
+    /// # use xtag::XTags;
+    /// let mut tags: XTags = HashMap::new();
+    /// tags.insert("foo".to_string(), None);
+    /// let search = Searcher::new_or(Searcher::new_tag("foo").unwrap(), Searcher::new_tag("bar").unwrap());
+    /// assert!(search.is_match(&tags) == true);
+    /// ```
     pub fn new_or(lhs: Searcher, rhs: Searcher) -> Self {
         Searcher::Or {
             lhs: Box::new(lhs),
@@ -55,15 +90,72 @@ impl Searcher {
         }
     }
 
+    /// Returns new not Searcher.
+    ///
+    /// Matches when the contained element doesn't match.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use xtag::Searcher;
+    /// # use xtag::XTags;
+    /// let mut tags: XTags = HashMap::new();
+    /// tags.insert("bar".to_string(), None);
+    /// let search = Searcher::new_not(Searcher::new_tag("foo").unwrap());
+    /// assert!(search.is_match(&tags) == true);
+    /// ```
     pub fn new_not(lhs: Searcher) -> Self {
         Searcher::Not { lhs: Box::new(lhs) }
     }
 
+    /// Returns new tag Searcher.
+    ///
+    /// Matches when the regular expression matches. The expression is expanded with anchors to match
+    /// the whole tag.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use xtag::Searcher;
+    /// # use xtag::XTags;
+    /// let mut tags: XTags = HashMap::new();
+    /// tags.insert("foo".to_string(), None);
+    /// let search = Searcher::new_tag("foo").unwrap();
+    /// assert!(search.is_match(&tags) == true);
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// - XTagError::Regex if the regex argument is not a valid regular expression
     pub fn new_tag(regex: &str) -> Result<Self> {
         let regex = Regex::new(&expand_regex(regex)).map_err(|err| XTagError::Regex(err))?;
         Ok(Searcher::Tag { regex })
     }
 
+    /// Returns new equal Searcher.
+    ///
+    /// tag_regex specifies which tags are checked and value_regex is matched against the associated
+    /// values. Matches when one value of one matching tag matches. The regular expressions are
+    /// expanded with anchors to match the whole tag or value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use xtag::Searcher;
+    /// # use xtag::XTags;
+    /// let mut tags: XTags = HashMap::new();
+    /// tags.insert("bar".to_string(), Some("foo".to_string()));
+    /// tags.insert("baz".to_string(), Some("qux".to_string()));
+    /// let search = Searcher::new_equal("ba.", "qu.").unwrap();
+    /// assert!(search.is_match(&tags) == true);
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// - XTagError::Regex if tag_regex or value_regex are not a valid regular expression
     pub fn new_equal(tag_regex: &str, value_regex: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
@@ -75,11 +167,42 @@ impl Searcher {
         })
     }
 
+    /// Returns Searcher for inequality
+    ///
+    /// Combines an equal and a not searcher to test for inequality
+    ///
+    /// # Errors
+    ///
+    /// - XTagError::Regex if tag_regex or value_regex are not a valid regular expression
     pub fn new_inequal(tag_regex: &str, value_regex: &str) -> Result<Self> {
         let equal = Searcher::new_equal(tag_regex, value_regex)?;
         Ok(Searcher::new_not(equal))
     }
 
+    /// Returns new less Searcher.
+    ///
+    /// tag_regex specifies which tags are checked and rhs is matched against the integer
+    /// representation of the associated values. Matches when one value of one matching tag matches.
+    /// tag_regex is expanded with anchors to match the whole tag. If the value cannot be converted
+    /// to integer that's no match.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use xtag::Searcher;
+    /// # use xtag::XTags;
+    /// let mut tags: XTags = HashMap::new();
+    /// tags.insert("bar".to_string(), Some("10".to_string()));
+    /// tags.insert("baz".to_string(), Some("100".to_string()));
+    /// let search = Searcher::new_less("ba.", "50").unwrap();
+    /// assert!(search.is_match(&tags) == true);
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// - XTagError::Regex if tag_regex is not a valid regular expression
+    /// - XtagError::IntParse if rhs can't be parsed into an integer
     pub fn new_less(tag_regex: &str, value: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
@@ -89,6 +212,25 @@ impl Searcher {
         Ok(Searcher::Less { tag_regex, value })
     }
 
+    /// Returns new less or equal Searcher.
+    ///
+    /// tag_regex specifies which tags are checked and rhs is matched against the integer
+    /// representation of the associated values. Matches when one value of one matching tag matches.
+    /// tag_regex is expanded with anchors to match the whole tag. If the value cannot be converted
+    /// to integer that's no match.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use xtag::Searcher;
+    /// # use xtag::XTags;
+    /// let mut tags: XTags = HashMap::new();
+    /// tags.insert("bar".to_string(), Some("10".to_string()));
+    /// tags.insert("baz".to_string(), Some("100".to_string()));
+    /// let search = Searcher::new_less_equal("ba.", "10").unwrap();
+    /// assert!(search.is_match(&tags) == true);
+    /// ```
     pub fn new_less_equal(tag_regex: &str, value: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
@@ -98,6 +240,25 @@ impl Searcher {
         Ok(Searcher::LessEqual { tag_regex, value })
     }
 
+    /// Returns new greater Searcher.
+    ///
+    /// tag_regex specifies which tags are checked and rhs is matched against the integer
+    /// representation of the associated values. Matches when one value of one matching tag matches.
+    /// tag_regex is expanded with anchors to match the whole tag. If the value cannot be converted
+    /// to integer that's no match.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use xtag::Searcher;
+    /// # use xtag::XTags;
+    /// let mut tags: XTags = HashMap::new();
+    /// tags.insert("bar".to_string(), Some("10".to_string()));
+    /// tags.insert("baz".to_string(), Some("100".to_string()));
+    /// let search = Searcher::new_greater("ba.", "50").unwrap();
+    /// assert!(search.is_match(&tags) == true);
+    /// ```
     pub fn new_greater(tag_regex: &str, value: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
@@ -107,6 +268,25 @@ impl Searcher {
         Ok(Searcher::Greater { tag_regex, value })
     }
 
+    /// Returns new greater or equal Searcher.
+    ///
+    /// tag_regex specifies which tags are checked and rhs is matched against the integer
+    /// representation of the associated values. Matches when one value of one matching tag matches.
+    /// tag_regex is expanded with anchors to match the whole tag. If the value cannot be converted
+    /// to integer that's no match.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::collections::HashMap;
+    /// # use xtag::Searcher;
+    /// # use xtag::XTags;
+    /// let mut tags: XTags = HashMap::new();
+    /// tags.insert("bar".to_string(), Some("10".to_string()));
+    /// tags.insert("baz".to_string(), Some("100".to_string()));
+    /// let search = Searcher::new_greater_equal("ba.", "10").unwrap();
+    /// assert!(search.is_match(&tags) == true);
+    /// ```
     pub fn new_greater_equal(tag_regex: &str, value: &str) -> Result<Self> {
         let tag_regex =
             Regex::new(&expand_regex(tag_regex)).map_err(|err| XTagError::Regex(err))?;
@@ -181,8 +361,8 @@ impl Searcher {
     }
 }
 
-/// Doesn't necessarily reproduce the exact term this Searcher resulted from.
 impl fmt::Display for Searcher {
+    /// Doesn't necessarily reproduce the exact term this Searcher resulted from.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Searcher::And { lhs, rhs } => write!(f, "({}) AND ({})", lhs, rhs),
