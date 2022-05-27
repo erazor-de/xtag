@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Implemented Display for Searcher
+- Implemented bookmark support
 - Defined type aliases Result and XTags
 - Documentation
 

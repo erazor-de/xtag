@@ -1,11 +1,12 @@
-use crate::error::{Result, XTagError};
-use crate::parser::Rule;
-use crate::parser::SearchParser;
+use std::collections::HashMap;
+
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
-use std::collections::HashMap;
 
+use crate::error::{Result, XTagError};
+use crate::parser::Rule;
+use crate::parser::SearchParser;
 use crate::XTags;
 
 fn eval_tag_with_value(pair: Pair<Rule>, container: &mut XTags) {

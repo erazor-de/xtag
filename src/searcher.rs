@@ -1,7 +1,9 @@
+use std::fmt;
+
+use regex::Regex;
+
 use crate::error::{Result, XTagError};
 use crate::XTags;
-use regex::Regex;
-use std::fmt;
 
 /// Searcher variants.
 pub enum Searcher {

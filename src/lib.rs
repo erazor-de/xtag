@@ -1,19 +1,23 @@
+mod bookmarks;
 mod error;
 mod parse_search;
 mod parse_tags;
 mod parser;
 mod searcher;
 
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::str;
+
+use itertools::Itertools;
+use regex::Regex;
+
+pub use crate::bookmarks::get_bookmark;
 pub use crate::error::{Result, XTagError};
 pub use crate::parse_search::compile_search;
 pub use crate::parse_tags::csl_to_map;
 use crate::parser::Rule;
 pub use crate::searcher::Searcher;
-use itertools::Itertools;
-use regex::Regex;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::str;
 
 pub type XTags = HashMap<String, Option<String>>;
 

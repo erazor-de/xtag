@@ -1,9 +1,12 @@
-use crate::error::{Result, XTagError};
-use crate::parser::Rule;
-use crate::parser::SearchParser;
-use crate::searcher::Searcher;
+use std::path::PathBuf;
+
 use pest::iterators::Pair;
 use pest::Parser;
+
+use crate::parser::Rule;
+use crate::parser::SearchParser;
+use crate::Searcher;
+use crate::{Result, XTagError};
 
 fn eval_or_expr(pair: Pair<Rule>) -> Result<Searcher> {
     let mut pairs = pair.into_inner();
@@ -79,6 +82,11 @@ fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher> {
     }
 }
 
+fn eval_bookmark(pair: Pair<Rule>) -> Result<Searcher> {
+    let path = PathBuf::from(pair.as_str());
+    crate::get_bookmark(&path)
+}
+
 fn eval_expression(pair: Pair<Rule>) -> Result<Searcher> {
     match pair.as_rule() {
         Rule::tag_with_regex => eval_tag(pair),
@@ -86,6 +94,7 @@ fn eval_expression(pair: Pair<Rule>) -> Result<Searcher> {
         Rule::and_expr => eval_and_expr(pair),
         Rule::not_expr => eval_not_expr(pair),
         Rule::comparison_expr => eval_comparison(pair),
+        Rule::bookmark => eval_bookmark(pair),
         rule => Err(XTagError::ParserImplementation(format!(
             "unexpected grammar rule {rule:?}"
         ))),
