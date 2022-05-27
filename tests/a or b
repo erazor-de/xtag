@@ -1,0 +1,2 @@
+Cargo doesn't like to package symlinks that point nowhere. So this is just a
+placeholder providing a valid target for an accompanying bookmark symlink.
