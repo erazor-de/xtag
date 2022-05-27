@@ -1,11 +1,14 @@
-use crate::error::XTagError;
-use crate::parser::Rule;
-use crate::parser::SearchParser;
-use crate::searcher::Searcher;
+use std::path::PathBuf;
+
 use pest::iterators::Pair;
 use pest::Parser;
 
-fn eval_or_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+use crate::parser::Rule;
+use crate::parser::SearchParser;
+use crate::Searcher;
+use crate::{Result, XTagError};
+
+fn eval_or_expr(pair: Pair<Rule>) -> Result<Searcher> {
     let mut pairs = pair.into_inner();
     let mut lhs = eval_expression(pairs.next().unwrap())?;
     while pairs.peek().is_some() {
@@ -16,7 +19,7 @@ fn eval_or_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     Ok(lhs)
 }
 
-fn eval_and_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_and_expr(pair: Pair<Rule>) -> Result<Searcher> {
     let mut pairs = pair.into_inner();
     let mut lhs = eval_expression(pairs.next().unwrap())?;
     while pairs.peek().is_some() {
@@ -27,12 +30,12 @@ fn eval_and_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     Ok(lhs)
 }
 
-fn eval_tag(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_tag(pair: Pair<Rule>) -> Result<Searcher> {
     let tag_regex = pair.as_str();
     Searcher::new_tag(tag_regex)
 }
 
-fn eval_not_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_not_expr(pair: Pair<Rule>) -> Result<Searcher> {
     let mut pairs = pair.into_inner();
     let first = pairs.next().unwrap();
     if pairs.peek().is_some() {
@@ -53,7 +56,7 @@ fn eval_not_expr(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
 
 // Equality is tested as regex, inequality operators are done after conversion
 // to int
-fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher> {
     let mut pairs = pair.into_inner();
     let lhs = pairs.next().unwrap();
     if pairs.peek().is_some() {
@@ -79,20 +82,43 @@ fn eval_comparison(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
     }
 }
 
-fn eval_expression(pair: Pair<Rule>) -> Result<Searcher, XTagError> {
+fn eval_bookmark(pair: Pair<Rule>) -> Result<Searcher> {
+    let path = PathBuf::from(pair.as_str());
+    crate::get_bookmark(&path)
+}
+
+fn eval_expression(pair: Pair<Rule>) -> Result<Searcher> {
     match pair.as_rule() {
         Rule::tag_with_regex => eval_tag(pair),
         Rule::or_expr => eval_or_expr(pair),
         Rule::and_expr => eval_and_expr(pair),
         Rule::not_expr => eval_not_expr(pair),
         Rule::comparison_expr => eval_comparison(pair),
+        Rule::bookmark => eval_bookmark(pair),
         rule => Err(XTagError::ParserImplementation(format!(
             "unexpected grammar rule {rule:?}"
         ))),
     }
 }
 
-pub fn compile_search(term: &str) -> Result<Searcher, XTagError> {
+/// Compiles a fast search structure out of expression.
+///
+/// Parses term and returns a tree structure of Searcher elements.
+///
+/// # Example
+///
+/// ```
+/// # use std::collections::HashMap;
+/// # use xtag::XTags;
+/// let mut tags: XTags = HashMap::new();
+/// tags.insert("foo".to_string(), None);
+/// tags.insert("bar".to_string(), None);
+/// let search = xtag::compile_search("foo and bar").unwrap();
+/// assert!(search.is_match(&tags) == true);
+/// ```
+/// # Errors
+/// - XTagError::Parser
+pub fn compile_search(term: &str) -> Result<Searcher> {
     // parse returns array of one rule + EOI. Start with first element here
     let pair = SearchParser::parse(Rule::search, term)
         .map_err(|err| XTagError::Parser(err))?

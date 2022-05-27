@@ -1,5 +1,8 @@
-use crate::Rule;
+use std::ffi::OsString;
+
 use thiserror::Error;
+
+use crate::Rule;
 
 #[derive(Error, Debug)]
 pub enum XTagError {
@@ -21,4 +24,9 @@ pub enum XTagError {
 
     #[error("int parser error")]
     IntParse(#[from] ::core::num::ParseIntError),
+
+    #[error("no valid bookmark {0:?}")]
+    Bookmark(OsString),
 }
+
+pub type Result<T> = std::result::Result<T, XTagError>;

@@ -4,7 +4,7 @@ or_expr = { and_expr ~ (or ~ and_expr)* }
 and_expr = { comparison_expr ~ (and ~ comparison_expr)* }
 comparison_expr = { tag_with_regex ~ comparison_op ~ value_with_regex | not_expr }
 not_expr = { not ~ not_expr | primary }
-primary = _{ tag_with_regex | "(" ~ expression ~ ")" }
+primary = _{ "{" ~ bookmark ~ "}" | "(" ~ expression ~ ")" | tag_with_regex }
 tag_with_regex = @{ (tag_chars_without_parentheses | regex_group)+ }
 value_with_regex = @{ tag_with_regex }
 
@@ -23,6 +23,8 @@ binary_op = _{ and | or }
 and = { ^"and" | "&&" }
 or = { ^"or" | "||" }
 
+bookmark = { filesystem_path }
+
 
 
 comma_separated_tags_with_values = _{ SOI ~ (tag_with_value ~ ("," ~ tag_with_value)*)? ~ EOI }
@@ -38,11 +40,11 @@ regex_chars_without_parentheses = _{ "." | "+" | "*" | "?" | "^" | "$" | "[" | "
 // _ is for general naming
 // - is minus for integer values and general naming
 // Don't use any regex chars for this
-name_chars = _{ ASCII_ALPHANUMERIC | ":" | "_" | "-" }
+name_chars = _{ LETTER | NUMBER | ":" | "_" | "-" }
 
 tag_chars_without_parentheses = _{ name_chars | regex_chars_without_parentheses }
 regex_group = @{ "(" ~ tag_with_regex+ ~ ")" }
-
-
+filesystem_char = _{ LETTER | MARK | NUMBER | CONNECTOR_PUNCTUATION | DASH_PUNCTUATION | INITIAL_PUNCTUATION | FINAL_PUNCTUATION | OTHER_PUNCTUATION | SYMBOL | SEPARATOR }
+filesystem_path = _{ filesystem_char+ }
 
 WHITESPACE = _{ " " }
