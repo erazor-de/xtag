@@ -8,7 +8,8 @@ fn find_in_string(term: &str, string: &str) -> bool {
 }
 
 #[test]
-fn grammar_supports_bookmarks() {
+fn grammar_bookmarks_have_implicit_parentheses() {
     assert_eq!(find_in_string("{tests/a_or_b} and c", "a,c"), true);
     assert_eq!(find_in_string("{tests/a_or_b} and c", "c"), false);
+    assert_eq!(find_in_string("{tests/a_or_b} and c", "a"), false);
 }
