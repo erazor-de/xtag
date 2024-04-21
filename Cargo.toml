@@ -13,9 +13,9 @@ Library for handling tags stored in extended attributes of supporting file syste
 """
 
 [dependencies]
-itertools = "0.10"
+itertools = "0.12"
 pest = "2"
 pest_derive = "2"
 regex = "1"
 thiserror = "1"
-xattr = "0.2"
+xattr = "1"
